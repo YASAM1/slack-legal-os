@@ -170,15 +170,25 @@ The manifest already requests the right scopes (`app_mentions:read`, `chat:write
 
 ## 10. Push all env vars to Vercel
 
-Your keys are in `.env.local`. The fastest way to get them into Vercel:
+Your keys are in `.env.local`. Push them all to Vercel in one command — no copy-paste:
 
 ```bash
-# Add each variable to Production (and Preview/Development as desired).
-# Easiest path: open the Vercel dashboard → Project → Settings → Environment Variables
-# and paste each key/value. DATABASE_URL* are already there from Step 3 (Neon).
+pnpm env:push            # push every real var in .env.local to Production
 ```
 
-Make sure these exist in Vercel **Production** env:
+What it does (see `scripts/push-env.mts`):
+
+- Pushes every filled-in variable to **Production**. Target other environments by naming them, e.g. `pnpm env:push production preview`.
+- **Skips the Neon/Postgres vars** (`DATABASE_URL*`, `POSTGRES_*`, `PG*`, …) — those are managed by the Neon integration from Step 3, and pushing your local copies would clobber the working DB connection.
+- Skips empty values and placeholder stubs (e.g. `SLACK_APP_TOKEN=xapp-`).
+- Is **non-destructive**: a var that already exists is reported and left untouched. Preview with `--dry-run`; overwrite existing values with `--force`.
+
+```bash
+pnpm env:push --dry-run  # show exactly what would change, send nothing
+pnpm env:push --force    # overwrite vars that already exist (use after you fix a value)
+```
+
+At minimum, this should set the following in Vercel **Production**:
 
 `ENCRYPTION_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `ADMIN_ALLOWED_EMAILS`, `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `CLIO_CLIENT_ID`, `CLIO_CLIENT_SECRET`, `CLIO_REDIRECT_URI`, `CLIO_BASE_URL`, `PERPLEXITY_API_KEY`.
 
@@ -186,7 +196,11 @@ Make sure these exist in Vercel **Production** env:
 
 > 🔑 **These two must be in Vercel Production *before* you deploy, or Slack URL verification will keep failing even on a live URL:** `SLACK_SIGNING_SECRET` (the webhook validates Slack's signed verification request against it) and `SLACK_BOT_TOKEN`. They're the credentials you copied in Step 8.
 
-> 💡 Already added them in the dashboard? Pull them back to your machine for local dev with `vercel env pull .env.local`.
+> ⚠️ **Changed a value after a deploy?** Vercel only applies env changes on the *next* deploy. Re-run `pnpm env:push --force`, then redeploy (Step 11).
+
+> 🖱️ **Prefer the dashboard?** You can still open Project → Settings → Environment Variables and paste each key/value by hand. `DATABASE_URL*` are already there from Step 3 (Neon).
+
+> 💡 Already pushed them? Pull them back to your machine anytime for local dev with `vercel env pull .env.local`.
 
 ---
 
