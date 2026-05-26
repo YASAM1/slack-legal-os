@@ -200,7 +200,7 @@ At minimum, this should set the following in Vercel **Production**:
 
 > 🖱️ **Prefer the dashboard?** You can still open Project → Settings → Environment Variables and paste each key/value by hand. `DATABASE_URL*` are already there from Step 3 (Neon).
 
-> 💡 Already pushed them? Pull them back to your machine anytime for local dev with `vercel env pull .env.local`.
+> 💡 Keep `.env.local` as your **local source of truth** and push *to* Vercel with `pnpm env:push`. Avoid `vercel env pull .env.local` — it overwrites the file and (for Sensitive variables) returns blanks.
 
 ---
 
@@ -233,12 +233,17 @@ Your URL is now live **and** the Slack signing secret is in Vercel (Step 10), so
 
 ## 12. Run database migrations
 
-This enables the `pgvector` extension and creates all tables in a dedicated `legal_os` Postgres schema. Run it once against your Neon DB (it reads `DATABASE_URL_UNPOOLED` from `.env.local`):
+This enables the `pgvector` extension and creates all tables in a dedicated `legal_os` Postgres schema. Migrations need a **direct (unpooled)** connection string. That value lives in your Neon database, so grab it from there and put it in `.env.local`:
 
-```bash
-vercel env pull .env.local     # if you haven't already, get the DB URLs locally
-pnpm db:migrate
-```
+1. Vercel dashboard → **Storage** → your Neon database → **Connect** (or open it in the **Neon Console**). Copy the **direct / unpooled** connection string — its host does **not** contain `-pooler`.
+2. Put it in `.env.local`:
+   ```
+   DATABASE_URL_UNPOOLED=postgresql://…   # direct connection (host has no -pooler)
+   ```
+3. Run the migration:
+   ```bash
+   pnpm db:migrate
+   ```
 
 You should see:
 ```
@@ -248,6 +253,8 @@ Migrations complete.
 ```
 
 (Optional) inspect the DB with `pnpm db:studio`.
+
+> 🚫 **Do _not_ run `vercel env pull .env.local` to get the DB URL.** That command (a) **overwrites your `.env.local`**, wiping the keys you filled in earlier; (b) defaults to the *Development* environment, which is empty; and (c) returns **blank values for any variable marked _Sensitive_** (the default on new Vercel projects) — so you'd end up with an `.env.local` full of empty values and a confusing `DATABASE_URL is not set`. Treat `.env.local` as your source of truth and push *to* Vercel with `pnpm env:push` (Step 10); the one value you ever fetch *from* the cloud is this Neon connection string, and you get that from Neon — not from `vercel env pull`.
 
 ---
 
@@ -275,10 +282,13 @@ Migrations complete.
 
 ## Local development (optional)
 
+Your `.env.local` already holds everything for local dev — just run:
+
 ```bash
-vercel env pull .env.local   # sync env from Vercel
 pnpm dev                     # http://localhost:3000
 ```
+
+> ⚠️ **Don't `vercel env pull .env.local`.** It overwrites the file and writes back **blank** values for anything marked _Sensitive_ in Vercel — so you'd lose your working local config. `.env.local` is your local source of truth; use `pnpm env:push` to send changes *to* Vercel, not the other way around. (For local Clio OAuth, set `CLIO_REDIRECT_URI=http://localhost:3000/api/clio/auth/callback`.)
 
 For Slack to reach your local machine, point the Slack app's Request URL at a tunnel (e.g. `ngrok http 3000` → use the https URL + `/api/webhooks/slack`). Remember to switch it back to your Vercel URL afterward.
 
@@ -288,7 +298,7 @@ For Slack to reach your local machine, point the Slack app's Request URL at a tu
 
 | Variable | Required now? | Where it comes from |
 |---|---|---|
-| `DATABASE_URL` / `DATABASE_URL_UNPOOLED` | ✅ | Neon integration (Step 3) |
+| `DATABASE_URL` / `DATABASE_URL_UNPOOLED` | ✅ | Neon integration (Step 3); for local migrations copy the **direct** string from Neon into `.env.local` (Step 12) |
 | `ENCRYPTION_KEY` | ✅ | `openssl rand -hex 32` (Step 5) |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` | ✅ | Clerk (Step 4) |
 | `ADMIN_ALLOWED_EMAILS` | ✅ | you choose (Step 4) |
@@ -310,7 +320,8 @@ For Slack to reach your local machine, point the Slack app's Request URL at a tu
 | **403 Forbidden on `/admin`** | Your Clerk email isn't in `ADMIN_ALLOWED_EMAILS`. Add it (in Vercel env) and redeploy. |
 | **`ENCRYPTION_KEY must be 32 bytes`** | The key must be 64 hex chars. Regenerate with `openssl rand -hex 32`. |
 | **Clio connect fails / redirect mismatch** | The Clio app's Redirect URI must match `CLIO_REDIRECT_URI` exactly, including `https://` and no trailing slash. EU firms: set `CLIO_BASE_URL=https://eu.app.clio.com`. |
-| **Migrations can't connect** | Ensure `DATABASE_URL_UNPOOLED` is present locally (`vercel env pull .env.local`). |
+| **Migrations can't connect / `DATABASE_URL is not set`** | Put the Neon **direct (unpooled)** connection string in `.env.local` as `DATABASE_URL_UNPOOLED` (get it from Neon — Vercel → Storage → your DB → **Connect**). Don't use `vercel env pull` for this (see Step 12). |
+| **`.env.local` suddenly full of blank values** | You ran `vercel env pull .env.local`, which overwrites the file and returns blanks for _Sensitive_ variables. Re-create it from `.env.example` and re-enter your secrets (they're still live in Vercel, just not readable back), then `pnpm env:push`. Never pull over `.env.local`. |
 | **Charts don't render inline** | Charts are QuickChart PNG URLs posted by the bot; Slack unfurls them. Confirm the bot can post to the channel (it's invited) and that the message isn't being blocked by link-unfurl settings. |
 
 ---
