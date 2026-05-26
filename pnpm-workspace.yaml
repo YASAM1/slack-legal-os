@@ -1,0 +1,25 @@
+allowBuilds:
+  '@clerk/shared': true
+  esbuild: true
+  msw: true
+  sharp: true
+  unrs-resolver: true
+onlyBuiltDependencies:
+  - '@clerk/shared'
+  - esbuild
+  - msw
+  - sharp
+  - unrs-resolver
+# Install platform-specific binaries (sharp, esbuild) for both local dev
+# and Vercel's Linux runtime so prebuilt deploys carry both.
+supportedArchitectures:
+  os:
+    - current
+    - linux
+  cpu:
+    - current
+    - arm64
+    - x64
+  libc:
+    - current
+    - glibc

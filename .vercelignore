@@ -1,0 +1,6 @@
+scripts/
+active/
+db/migrations/
+*.md
+.env.local
+.env.local.fresh
