@@ -14,7 +14,7 @@ This repo is functional through the agent + tools milestone:
 
 - **Slack chat agent** — mention the bot, DM it, or use `/legal-os`. Powered by Claude via the Vercel AI Gateway, with per-thread conversation memory.
 - **Clio integration** — OAuth2 connect flow; read/write primitives for matters, contacts, activities (time entries), bills, and users. Writes prompt for confirmation in-thread.
-- **Charts** — ask for a chart and the agent renders a Vega-Lite spec to PNG, uploads it to Vercel Blob, and posts it inline in Slack.
+- **Charts** — ask for a chart (bar/line/pie) and the agent renders it via [QuickChart](https://quickchart.io) and posts the image inline in Slack. _(Chart data is sent to QuickChart, a third-party service.)_
 - **Web search** — the agent can reach out to Perplexity for general/legal questions and cite sources.
 - **Admin UI** (`/admin`) — Clerk-gated by an email allowlist; Clio connection management and an agent settings shell.
 - **Audit log** — every tool call (especially Clio writes) is recorded with the originating Slack user.
@@ -32,11 +32,13 @@ These sections of the admin UI are placeholders and the underlying features are 
 
 ## Setup
 
-Standing up your own instance involves several external accounts (Vercel, Neon, Clerk, Slack, Clio, an AI Gateway key, Perplexity). The full, click-by-click walkthrough is in:
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YASAM1/slack-legal-os&env=ENCRYPTION_KEY,NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,CLERK_SECRET_KEY,ADMIN_ALLOWED_EMAILS,SLACK_BOT_TOKEN,SLACK_SIGNING_SECRET,CLIO_CLIENT_ID,CLIO_CLIENT_SECRET,CLIO_REDIRECT_URI,CLIO_BASE_URL,PERPLEXITY_API_KEY,AI_GATEWAY_API_KEY&envDescription=Keys%20needed%20to%20run%20Legal%20OS%20%E2%80%94%20see%20SETUP.md%20for%20how%20to%20get%20each&envLink=https://github.com/YASAM1/slack-legal-os/blob/main/SETUP.md&project-name=slack-legal-os&repository-name=slack-legal-os)
+
+The button above forks the repo and creates a Vercel project in one flow. Standing up a **fully working** instance also needs a database, Slack app, and Clio app configured with your live URL — so follow the click-by-click walkthrough:
 
 ### 👉 [SETUP.md](./SETUP.md)
 
-It takes you from a fresh clone to a working bot in your own Slack workspace.
+It takes you from a fresh clone to a working bot in your own Slack workspace (~45–60 min).
 
 ## Quick local start (after completing SETUP.md)
 

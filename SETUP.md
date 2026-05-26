@@ -59,9 +59,10 @@ Your production URL will be **`https://<project-name>.vercel.app`** (Vercel show
 
 1. In the Vercel dashboard, open your project → **Storage** → **Create Database** → **Neon** (Postgres) → follow the prompts.
 2. This auto-injects `DATABASE_URL` **and** `DATABASE_URL_UNPOOLED` into your Vercel project's environment variables.
-3. While you're in Storage, also create a **Blob** store (→ **Create** → **Blob**). This injects `BLOB_READ_WRITE_TOKEN`, used for chart image uploads.
 
 > ℹ️ `DATABASE_URL` is the pooled connection (used at runtime). `DATABASE_URL_UNPOOLED` is the direct connection used to run migrations. The Neon integration gives you both.
+>
+> 💡 No Blob store needed — charts are rendered by [QuickChart](https://quickchart.io) (a hosted Chart.js renderer) and posted to Slack as a URL, so there's nothing to store.
 
 ---
 
@@ -169,7 +170,7 @@ Your keys are in `.env.local`. The fastest way to get them into Vercel:
 ```bash
 # Add each variable to Production (and Preview/Development as desired).
 # Easiest path: open the Vercel dashboard → Project → Settings → Environment Variables
-# and paste each key/value. DATABASE_URL*, BLOB_READ_WRITE_TOKEN are already there from Steps 3.
+# and paste each key/value. DATABASE_URL* are already there from Step 3 (Neon).
 ```
 
 Make sure these exist in Vercel **Production** env:
@@ -184,13 +185,16 @@ Make sure these exist in Vercel **Production** env:
 
 ## 11. Deploy
 
-> ⚠️ **Known build quirk — read this.** The standard Vercel hosted (Git-connected) build currently fails on this project with an opaque `TypeError: The "path" argument must be of type string`. The reliable workaround is to build locally and upload the prebuilt output:
->
-> ```bash
-> pnpm deploy:prebuilt
-> ```
->
-> This runs `vercel build --prod` on your machine and uploads it with `vercel deploy --prebuilt --prod`. (Root cause is still under investigation; see Troubleshooting.)
+Standard Vercel deploy — pick whichever you prefer:
+
+**Option A — Git-connected (recommended).** If you imported the GitHub repo when creating the project (Step 2), every push to `main` auto-deploys. Just push, or hit **Redeploy** in the dashboard.
+
+**Option B — CLI.**
+```bash
+vercel --prod
+```
+
+> 🚀 **One-click option:** the README has a **Deploy with Vercel** button that forks the repo, creates the project, and prompts for env vars in one flow. You'll still come back to this guide for the database migration (Step 12) and the Slack/Clio setup, since those need your live URL.
 
 After it deploys, visit `https://YOUR-APP-URL` — you should get the app. Visit `https://YOUR-APP-URL/admin` and you'll be asked to sign in via Clerk; sign in with an allowlisted email.
 
@@ -262,7 +266,6 @@ For Slack to reach your local machine, point the Slack app's Request URL at a tu
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | ✅ | Slack app (Step 8) |
 | `CLIO_CLIENT_ID` / `CLIO_CLIENT_SECRET` / `CLIO_REDIRECT_URI` / `CLIO_BASE_URL` | ✅ | Clio app (Step 9) |
 | `PERPLEXITY_API_KEY` | ✅ | Perplexity (Step 7) |
-| `BLOB_READ_WRITE_TOKEN` | ✅ | Vercel Blob (Step 3) |
 | `AI_GATEWAY_API_KEY` | local only | Vercel AI Gateway (Step 6) — auto via OIDC in prod |
 | `AGENT_MODEL` / `EMBEDDING_MODEL` / `CODEGEN_MODEL` | defaults set | `.env.example` |
 | `CRON_SECRET` / `VERCEL_OIDC_TOKEN` | roadmap | Vercel (future Cron/Sandbox features) |
@@ -273,14 +276,13 @@ For Slack to reach your local machine, point the Slack app's Request URL at a tu
 
 | Symptom | Fix |
 |---|---|
-| **Vercel hosted build fails** with `TypeError: The "path" argument must be of type string` | Use `pnpm deploy:prebuilt` (builds locally, uploads prebuilt). Known issue with this Next 16 + dependency mix. |
 | **Slack "Your URL didn't respond / verification failed"** | Make sure the app is deployed and live first, then **Retry** in Event Subscriptions. Confirm the URL is exactly `https://YOUR-APP-URL/api/webhooks/slack`. |
 | **Bot doesn't reply** | Check `SLACK_SIGNING_SECRET` and `SLACK_BOT_TOKEN` are set in Vercel Production; confirm the bot was invited to the channel; check the function logs in Vercel. |
 | **403 Forbidden on `/admin`** | Your Clerk email isn't in `ADMIN_ALLOWED_EMAILS`. Add it (in Vercel env) and redeploy. |
 | **`ENCRYPTION_KEY must be 32 bytes`** | The key must be 64 hex chars. Regenerate with `openssl rand -hex 32`. |
 | **Clio connect fails / redirect mismatch** | The Clio app's Redirect URI must match `CLIO_REDIRECT_URI` exactly, including `https://` and no trailing slash. EU firms: set `CLIO_BASE_URL=https://eu.app.clio.com`. |
 | **Migrations can't connect** | Ensure `DATABASE_URL_UNPOOLED` is present locally (`vercel env pull .env.local`). |
-| **Charts don't post** | Confirm the Blob store exists and `BLOB_READ_WRITE_TOKEN` is set; check `files:write` scope is granted to the Slack app. |
+| **Charts don't render inline** | Charts are QuickChart PNG URLs posted by the bot; Slack unfurls them. Confirm the bot can post to the channel (it's invited) and that the message isn't being blocked by link-unfurl settings. |
 
 ---
 
