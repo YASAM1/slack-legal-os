@@ -131,17 +131,22 @@ EMBEDDING_MODEL=openai/text-embedding-3-small   # used by the roadmap KB feature
 
 ## 8. Create the Slack app
 
+> 🔗 **Read this first — the Request URL is a two-phase thing (this is the #1 spot people get stuck).**
+> Slack verifies your **Request URL** by sending it a live request, so the URL must already be **deployed and responding** — but you don't deploy until **Step 11**. There's also a chicken-and-egg: creating the app here is what *gives* you the **Signing Secret**, yet the URL won't verify until that secret is in Vercel (**Step 10**) and the app is live (**Step 11**).
+>
+> So in **this** step you only **create the app and copy its two credentials**. Slack's Request URL verification **will fail right now — that is expected and fine.** You'll come back and complete verification at the end of Step 11, once the app is deployed.
+
 The repo includes an importable manifest at **`slack-manifest.json`**.
 
 1. **Swap in your URL.** Open `slack-manifest.json` and replace every `https://YOUR-APP.vercel.app/api/webhooks/slack` with `https://YOUR-APP-URL/api/webhooks/slack`. (One endpoint handles events, the slash command, *and* interactivity.)
-2. Go to https://api.slack.com/apps → **Create New App** → **From an app manifest** → pick your workspace → paste the edited JSON.
+2. Go to https://api.slack.com/apps → **Create New App** → **From an app manifest** → pick your workspace → paste the edited JSON. **Slack will immediately attempt to verify the Request URL and show a red error — ignore it for now** (nothing is deployed yet).
 3. **Install to Workspace** (under *Install App*). Approve the requested scopes.
 4. Copy the **Bot User OAuth Token** (`xoxb-…`) → `.env.local` as `SLACK_BOT_TOKEN`.
 5. Under **Basic Information → App Credentials**, copy the **Signing Secret** → `.env.local` as `SLACK_SIGNING_SECRET`.
 
 The manifest already requests the right scopes (`app_mentions:read`, `chat:write`, `commands`, `files:write`, `im:history`, `users:read`, etc.) and subscribes to the right events.
 
-> ⚠️ Slack will try to verify your **Request URL** when you save the manifest. That URL must already be deployed and responding (see Step 11). If verification fails the first time, finish the deploy, then come back to **Event Subscriptions** and click **Retry**.
+> ✅ **Done here for now.** You have the two Slack credentials in `.env.local`. Leave the failed Request URL as-is — Steps 10–11 push these secrets to Vercel and deploy your app, and the end of **Step 11 walks you back here to finish verification** (it'll succeed then).
 
 ---
 
@@ -179,6 +184,8 @@ Make sure these exist in Vercel **Production** env:
 
 (`AI_GATEWAY_API_KEY` is optional in production thanks to OIDC. `CRON_SECRET`, `VERCEL_OIDC_TOKEN` are for roadmap features — skip for now.)
 
+> 🔑 **These two must be in Vercel Production *before* you deploy, or Slack URL verification will keep failing even on a live URL:** `SLACK_SIGNING_SECRET` (the webhook validates Slack's signed verification request against it) and `SLACK_BOT_TOKEN`. They're the credentials you copied in Step 8.
+
 > 💡 Already added them in the dashboard? Pull them back to your machine for local dev with `vercel env pull .env.local`.
 
 ---
@@ -198,7 +205,15 @@ vercel --prod
 
 After it deploys, visit `https://YOUR-APP-URL` — you should get the app. Visit `https://YOUR-APP-URL/admin` and you'll be asked to sign in via Clerk; sign in with an allowlisted email.
 
-Now go back to **Step 8** and make sure Slack successfully verified the Request URL (Event Subscriptions should show a green ✓). Retry if needed.
+### 11a. Finish the Slack Request URL verification (the Step 8 cliffhanger)
+
+Your URL is now live **and** the Slack signing secret is in Vercel (Step 10), so verification will finally succeed. In https://api.slack.com/apps → your app:
+
+1. **Event Subscriptions** → the Request URL should re-verify automatically; if it still shows the old error, click **Retry**, or re-paste `https://YOUR-APP-URL/api/webhooks/slack` and save. You want a green **Verified ✓**.
+2. **Slash Commands** (`/legal-os`) and **Interactivity & Shortcuts** use the same URL — confirm both point at `https://YOUR-APP-URL/api/webhooks/slack`.
+3. If Slack prompts you to **reinstall the app** after a change, do it.
+
+> 🧪 **How to tell the endpoint is healthy** (from your terminal): an unsigned `POST` to `https://YOUR-APP-URL/api/webhooks/slack` should return **HTTP 401** (it's correctly enforcing the signing secret), and a `GET` should return **405**. A **500** means a missing/incorrect env var (most often `SLACK_SIGNING_SECRET`); a **404** means the URL is wrong.
 
 ---
 
@@ -276,7 +291,7 @@ For Slack to reach your local machine, point the Slack app's Request URL at a tu
 
 | Symptom | Fix |
 |---|---|
-| **Slack "Your URL didn't respond / verification failed"** | Make sure the app is deployed and live first, then **Retry** in Event Subscriptions. Confirm the URL is exactly `https://YOUR-APP-URL/api/webhooks/slack`. |
+| **Slack "Your URL didn't respond / verification failed"** | Two requirements that must *both* be true: (1) the app is **deployed and live** (Step 11), and (2) `SLACK_SIGNING_SECRET` + `SLACK_BOT_TOKEN` are in Vercel **Production** (Step 10) — then **Retry** in Event Subscriptions. Confirm the URL is exactly `https://YOUR-APP-URL/api/webhooks/slack`. A live endpoint returns 401 to an unsigned `POST` (healthy); a 500 means a missing env var. |
 | **Bot doesn't reply** | Check `SLACK_SIGNING_SECRET` and `SLACK_BOT_TOKEN` are set in Vercel Production; confirm the bot was invited to the channel; check the function logs in Vercel. |
 | **403 Forbidden on `/admin`** | Your Clerk email isn't in `ADMIN_ALLOWED_EMAILS`. Add it (in Vercel env) and redeploy. |
 | **`ENCRYPTION_KEY must be 32 bytes`** | The key must be 64 hex chars. Regenerate with `openssl rand -hex 32`. |

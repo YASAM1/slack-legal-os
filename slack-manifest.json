@@ -11,7 +11,7 @@
     "slash_commands": [
       {
         "command": "/legal-os",
-        "url": "https://YOUR-APP.vercel.app/api/webhooks/slack",
+        "url": "https://slack-setup-os.vercel.app/api/webhooks/slack",
         "description": "Ask Legal OS something",
         "usage_hint": "[your question]"
       }
@@ -41,7 +41,7 @@
   },
   "settings": {
     "event_subscriptions": {
-      "request_url": "https://YOUR-APP.vercel.app/api/webhooks/slack",
+      "request_url": "https://slack-setup-os.vercel.app/api/webhooks/slack",
       "bot_events": [
         "app_mention",
         "message.channels",
@@ -53,7 +53,7 @@
     },
     "interactivity": {
       "is_enabled": true,
-      "request_url": "https://YOUR-APP.vercel.app/api/webhooks/slack"
+      "request_url": "https://slack-setup-os.vercel.app/api/webhooks/slack"
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
